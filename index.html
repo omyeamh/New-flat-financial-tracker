@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>General Financial Installment Tracker</title>
+<title>General Financial Installment Tracker - Online</title>
 <style>
 :root{--bg:#f4f6f8;--card:#fff;--ink:#172033;--muted:#6b7280;--line:#d9dee7;--brand:#0f3d5e;--brand2:#176c8c;--ok:#0f766e;--warn:#b45309;--bad:#b91c1c;--soft:#eef6fb}
 *{box-sizing:border-box} body{margin:0;font-family:"Segoe UI",Tahoma,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.6}
@@ -16,19 +16,27 @@ h1{margin:0 0 8px;font-size:26px} h2{font-size:18px;margin:0 0 14px;color:var(--
 table{width:100%;border-collapse:collapse;background:white;border-radius:12px;overflow:hidden} th,td{border-bottom:1px solid var(--line);padding:10px;text-align:right;vertical-align:middle;font-size:13px} th{background:#eaf1f6;color:#18364b;font-weight:700;position:sticky;top:0} tr:hover td{background:#fafcff}
 input,select,textarea{width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:10px;font-family:inherit;background:#fff} input[type=file]{padding:7px}.num{text-align:left;direction:ltr}.btn{border:0;border-radius:10px;padding:10px 14px;background:var(--brand);color:white;cursor:pointer;font-weight:700}.btn.secondary{background:#475569}.btn.danger{background:var(--bad)}.btn.ok{background:var(--ok)}.btn:active{transform:translateY(1px)}
 .badge{display:inline-block;padding:4px 9px;border-radius:99px;font-size:12px;font-weight:700}.paid{background:#dcfce7;color:#166534}.due{background:#fee2e2;color:#991b1b}.partial{background:#fef3c7;color:#92400e}.future{background:#e0f2fe;color:#075985}
-.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.note{font-size:12px;color:var(--muted)}.section{margin-bottom:18px}.receipt{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.receipt a{color:var(--brand);font-weight:700;text-decoration:none}.mini{font-size:12px;color:var(--muted)}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.note{font-size:12px;color:var(--muted)}.section{margin-bottom:18px}.receipt{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.receipt a{color:var(--brand);font-weight:700;text-decoration:none}.mini{font-size:12px;color:var(--muted)}.authbar{background:#ffffff;border-bottom:1px solid var(--line);padding:10px 22px;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}.authstatus{font-size:13px;color:var(--muted)}.locked{filter:grayscale(.25);opacity:.55;pointer-events:none}.linkinput{direction:ltr;text-align:left}
 @media(max-width:900px){.g4,.g3,.g2{grid-template-columns:1fr}.container{padding:12px} header{padding:20px}.wide{overflow:auto}}
 @media print{body{background:white}.btn,.toolbar,input[type=file]{display:none} .card{box-shadow:none;break-inside:avoid} header{background:white;color:#000;border-bottom:2px solid #000}.container{max-width:none}}
 </style>
 </head>
 <body>
-<div class="privacy-note" style="direction:rtl;text-align:right;background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:10px 14px;margin:12px auto;max-width:1200px;font-size:14px;color:#7c2d12;">نسخة عامة بدون بيانات شخصية، ويمكن إدخال بيانات الوحدة من داخل الصفحة بعد النشر.</div>
+<div class="privacy-note" style="direction:rtl;text-align:right;background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:10px 14px;margin:12px auto;max-width:1200px;font-size:14px;color:#7c2d12;">نسخة عامة بدون بيانات شخصية. البيانات المالية تحفظ أونلاين بعد تسجيل الدخول، وروابط الإيصالات تحفظ كرابط فقط بدون رفع ملفات داخل Firebase Storage.</div>
 <header>
   <h1>الموقف المالي الكامل للشقة</h1>
   <div class="sub">مالك الوحدة - عمارة / مبنى - وحدة - المشروع السكني بالمشروع السكني</div>
 </header>
 
-<div class="container">
+<div class="authbar">
+  <div>
+    <button class="btn ok" id="loginBtn">تسجيل الدخول بجوجل</button>
+    <button class="btn secondary" id="logoutBtn" style="display:none">تسجيل الخروج</button>
+  </div>
+  <div class="authstatus" id="authStatus">لم يتم تسجيل الدخول بعد. لن يتم الحفظ أونلاين إلا بعد تسجيل الدخول.</div>
+</div>
+
+<div class="container" id="appContainer">
   <section class="grid g4 section">
     <div class="card kpi"><div class="label">قيمة الوحدة النهائية</div><div class="value" id="kFinal">0</div><small>طبقاً للبيانات المستخرجة من الكشف</small></div>
     <div class="card kpi"><div class="label">إجمالي الأقساط المجدولة</div><div class="value" id="kDue">0</div><small>يتم تحديثه من جدول الأقساط</small></div>
@@ -62,15 +70,17 @@ input,select,textarea{width:100%;padding:9px;border:1px solid #cbd5e1;border-rad
         <label>المبلغ<input id="payAmount" class="num" type="number" step="0.01" placeholder="0.00"></label>
         <label>مرجع الإيصال<input id="payRef" placeholder="رقم الإيصال / التحويل"></label>
         <label>ربط بقسط<select id="payInstallment"></select></label>
-        <label>إرفاق الإيصال<input id="payFile" type="file" accept="image/*,.pdf"></label>
+        <label>رابط الإيصال<input id="payReceiptLink" class="linkinput" type="url" placeholder="رابط Google Drive / OneDrive / Dropbox"></label>
       </div>
       <label>ملاحظات<textarea id="payNote" rows="2" placeholder="أي ملاحظات إضافية"></textarea></label>
       <div class="toolbar">
         <button class="btn ok" onclick="addPayment()">إضافة وحفظ</button>
         <button class="btn secondary" onclick="exportJSON()">تصدير نسخة احتياطية</button>
+        <button class="btn secondary" onclick="document.getElementById('importFile').click()">استيراد نسخة احتياطية</button>
+        <input id="importFile" type="file" accept=".json,application/json" style="display:none" onchange="importJSON(event)">
         <button class="btn secondary" onclick="window.print()">طباعة / حفظ PDF</button>
       </div>
-      <p class="note">كل البيانات التي تضيفها تُحفظ داخل المتصفح على هذا الجهاز فقط.</p>
+      <p class="note">البيانات تحفظ أونلاين في Firestore بعد تسجيل الدخول. الإيصال يتم حفظه كرابط فقط.</p>
     </div>
   </section>
 
@@ -108,7 +118,26 @@ input,select,textarea{width:100%;padding:9px;border:1px solid #cbd5e1;border-rad
   </section>
 </div>
 
-<script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDIT1zJr7neyLQbL8kFwdcrTTk5EA8QxIk",
+  authDomain: "flat-financial-tracker.firebaseapp.com",
+  projectId: "flat-financial-tracker",
+  storageBucket: "flat-financial-tracker.firebasestorage.app",
+  messagingSenderId: "503073947802",
+  appId: "1:503073947802:web:22c137e51cbdd0f44f9f23"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
+const db = getFirestore(app);
+const trackerRef = doc(db, "trackers", "main");
+
 const original = {
   settings:{finalPrice:1097145, unitAccountPaid:890000, companyCredit:0},
   installments:[
@@ -122,53 +151,46 @@ const original = {
   ],
   payments:[]
 };
-let data = JSON.parse(localStorage.getItem("financialTracker_finance_ar_rev03")) || structuredClone(original);
 
-(function migrateRev05(){
-  const originalSix = {
-    I1: 28691,
-    I2: 28691,
-    I3: 28691,
-    I4: 28691,
-    I5: 28691,
-    I6: 28690
-  };
+let data = structuredClone(original);
+let currentUser = null;
+let unsubscribeTracker = null;
+let cloudReady = false;
+let saving = false;
 
-  Object.entries(originalSix).forEach(([id, amount])=>{
-    const row = data.installments.find(i=>i.id===id);
-    if(row){
-      row.amount = amount;
-      row.penalty = Number(row.penalty||0);
-    }
-  });
-
-  let creditRow = data.installments.find(i=>i.id==="C0");
-  if(!creditRow){
-    data.installments.unshift({
-      id:"C0",
-      name:"رصيد لصالحك عند الشركة",
-      dueDate:"2025-05-31",
-      amount:35000,
-      penalty:0,
-      paid:true,
-      receiptNote:"مدفوع بالفعل للشركة قبل بداية الأقساط"
-    });
-  } else {
-    creditRow.name = "رصيد لصالحك عند الشركة";
-    creditRow.amount = 35000;
-    creditRow.penalty = 0;
-    creditRow.paid = true;
-    creditRow.receiptNote = creditRow.receiptNote || "مدفوع بالفعل للشركة قبل بداية الأقساط";
-  }
-
-  data.settings.finalPrice = 1097145;
-  data.settings.unitAccountPaid = 890000;
-  data.settings.companyCredit = 0;
-
-  localStorage.setItem("financialTracker_finance_ar_rev03", JSON.stringify(data));
-})();
 function money(v){return Number(v||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});}
-function save(){localStorage.setItem("financialTracker_finance_ar_rev03",JSON.stringify(data)); render();}
+function setStatus(msg){document.getElementById("authStatus").textContent = msg;}
+function setLocked(isLocked){document.getElementById("appContainer").classList.toggle("locked", isLocked);}
+function normalizeData(d){
+  const clean = d && typeof d === "object" ? d : structuredClone(original);
+  clean.settings = clean.settings || structuredClone(original.settings);
+  clean.installments = Array.isArray(clean.installments) ? clean.installments : structuredClone(original.installments);
+  clean.payments = Array.isArray(clean.payments) ? clean.payments : [];
+  return clean;
+}
+function localBackup(){
+  localStorage.setItem("generic_financial_tracker_cloud_backup", JSON.stringify(data));
+}
+async function save(){
+  render();
+  localBackup();
+  if(!currentUser || !cloudReady || saving) return;
+  saving = true;
+  try{
+    await setDoc(trackerRef, {
+      data: JSON.parse(JSON.stringify(data)),
+      updatedAt: serverTimestamp(),
+      updatedBy: currentUser.email || ""
+    }, {merge:true});
+    setStatus("تم الحفظ أونلاين بنجاح: " + (currentUser.email || ""));
+  }catch(err){
+    console.error(err);
+    alert("لم يتم الحفظ أونلاين. تأكد من تسجيل الدخول بالحساب المسموح له ومن قواعد Firestore.");
+    setStatus("خطأ في الحفظ أونلاين.");
+  }finally{
+    saving = false;
+  }
+}
 function statusBadge(balance,dueDate,total){
   const today = new Date(); const d = new Date(dueDate+"T00:00:00");
   if(balance<=0) return '<span class="badge paid">مسدد</span>';
@@ -176,8 +198,12 @@ function statusBadge(balance,dueDate,total){
   if(d<today) return '<span class="badge due">متأخر</span>';
   return '<span class="badge future">مستقبلي</span>';
 }
-function paymentsFor(id){return data.payments.filter(p=>p.installmentId===id && (p.type==="payment"||p.type==="credit")).reduce((s,p)=>s+Number(p.amount||0),0);}
-function chargesFor(id){return data.payments.filter(p=>p.installmentId===id && p.type==="charge").reduce((s,p)=>s+Number(p.amount||0),0);}
+function paymentsFor(id){
+  return data.payments.filter(p=>p.installmentId===id && (p.type==="payment"||p.type==="credit")).reduce((s,p)=>s+Number(p.amount||0),0);
+}
+function chargesFor(id){
+  return data.payments.filter(p=>p.installmentId===id && p.type==="charge").reduce((s,p)=>s+Number(p.amount||0),0);
+}
 function render(){
   document.getElementById("finalPrice").value=data.settings.finalPrice;
   document.getElementById("unitAccountPaid").value=data.settings.unitAccountPaid;
@@ -193,15 +219,15 @@ function render(){
     dueTotal += Number(i.amount)+Number(i.penalty||0);
     paidTotal += linkedPaid; chargeTotal += linkedCharges;
     tb.insertAdjacentHTML("beforeend",`<tr>
-      <td><input value="${i.name}" onchange="data.installments[${idx}].name=this.value; save()"></td>
-      <td><input type="date" value="${i.dueDate}" onchange="data.installments[${idx}].dueDate=this.value; save()"></td>
-      <td><input class="num" type="number" step="0.01" value="${i.amount}" onchange="data.installments[${idx}].amount=Number(this.value); save()"></td>
-      <td><input class="num" type="number" step="0.01" value="${i.penalty||0}" onchange="data.installments[${idx}].penalty=Number(this.value); save()"></td>
+      <td><input value="${i.name||""}" onchange="window.updateInstallment(${idx},'name',this.value)"></td>
+      <td><input type="date" value="${i.dueDate||""}" onchange="window.updateInstallment(${idx},'dueDate',this.value)"></td>
+      <td><input class="num" type="number" step="0.01" value="${Number(i.amount||0)}" onchange="window.updateInstallment(${idx},'amount',Number(this.value))"></td>
+      <td><input class="num" type="number" step="0.01" value="${Number(i.penalty||0)}" onchange="window.updateInstallment(${idx},'penalty',Number(this.value))"></td>
       <td class="num">${money(total)}</td>
       <td class="num">${money(linkedPaid)}</td>
       <td class="num">${money(bal)}</td>
       <td>${statusBadge(bal,i.dueDate,total)}</td>
-      <td><button class="btn danger" onclick="deleteInstallment('${i.id}')">حذف</button></td>
+      <td><button class="btn danger" onclick="window.deleteInstallment('${i.id}')">حذف</button></td>
     </tr>`);
   });
   const unlinkedPayments=data.payments.filter(p=>!p.installmentId && (p.type==="payment"||p.type==="credit")).reduce((s,p)=>s+Number(p.amount||0),0);
@@ -217,30 +243,111 @@ function render(){
   data.payments.forEach((p,idx)=>{
     const inst=data.installments.find(i=>i.id===p.installmentId);
     const typeName=p.type==="payment"?"دفعة":p.type==="credit"?"رصيد لصالحك":"مبلغ مستحق";
-    const fileLink=p.fileData?`<a download="${p.fileName}" href="${p.fileData}">${p.fileName||"فتح الإيصال"}</a>`:"-";
-    pt.insertAdjacentHTML("beforeend",`<tr><td>${p.date||""}</td><td>${typeName}</td><td class="num">${money(p.amount)}</td><td>${p.ref||""}</td><td>${inst?inst.name:"غير محدد"}</td><td>${fileLink}</td><td>${p.note||""}</td><td><button class="btn danger" onclick="deletePayment(${idx})">حذف</button></td></tr>`);
+    const receipt = p.receiptLink ? `<a target="_blank" rel="noopener" href="${p.receiptLink}">فتح رابط الإيصال</a>` : "-";
+    pt.insertAdjacentHTML("beforeend",`<tr><td>${p.date||""}</td><td>${typeName}</td><td class="num">${money(p.amount)}</td><td>${p.ref||""}</td><td>${inst?inst.name:"غير محدد"}</td><td>${receipt}</td><td>${p.note||""}</td><td><button class="btn danger" onclick="window.deletePayment(${idx})">حذف</button></td></tr>`);
   });
 }
-function addInstallment(){data.installments.push({id:"I"+Date.now(),name:"قسط جديد",dueDate:new Date().toISOString().slice(0,10),amount:0,penalty:0}); save();}
-function deleteInstallment(id){if(confirm("حذف هذا القسط؟")){data.installments=data.installments.filter(i=>i.id!==id); save();}}
-function deletePayment(idx){if(confirm("حذف هذه العملية؟")){data.payments.splice(idx,1); save();}}
-function saveSettings(){data.settings.finalPrice=Number(finalPrice.value||0);data.settings.unitAccountPaid=Number(unitAccountPaid.value||0);data.settings.companyCredit=Number(companyCredit.value||0);save();}
-function addPayment(){
-  const f=document.getElementById("payFile").files[0];
-  const item={date:payDate.value,type:payType.value,amount:Number(payAmount.value||0),ref:payRef.value,installmentId:payInstallment.value,note:payNote.value,fileName:f?f.name:"",fileData:""};
+
+window.updateInstallment = function(idx, field, value){data.installments[idx][field]=value; save();}
+window.addInstallment = function(){data.installments.push({id:"I"+Date.now(),name:"قسط جديد",dueDate:new Date().toISOString().slice(0,10),amount:0,penalty:0}); save();}
+window.deleteInstallment = function(id){if(confirm("حذف هذا القسط؟")){data.installments=data.installments.filter(i=>i.id!==id); save();}}
+window.deletePayment = function(idx){if(confirm("حذف هذه العملية؟")){data.payments.splice(idx,1); save();}}
+window.saveSettings = function(){data.settings.finalPrice=Number(finalPrice.value||0);data.settings.unitAccountPaid=Number(unitAccountPaid.value||0);data.settings.companyCredit=Number(companyCredit.value||0);save();}
+window.addPayment = function(){
+  const item={
+    date:payDate.value,
+    type:payType.value,
+    amount:Number(payAmount.value||0),
+    ref:payRef.value,
+    installmentId:payInstallment.value,
+    note:payNote.value,
+    receiptLink:payReceiptLink.value.trim()
+  };
   if(!item.date || !item.amount){alert("أدخل التاريخ والمبلغ.");return;}
-  if(f){
-    const reader=new FileReader();
-    reader.onload=()=>{item.fileData=reader.result; data.payments.push(item); clearPaymentForm(); save();};
-    reader.readAsDataURL(f);
-  }else{data.payments.push(item); clearPaymentForm(); save();}
+  data.payments.push(item); clearPaymentForm(); save();
 }
-function clearPaymentForm(){payDate.value="";payAmount.value="";payRef.value="";payNote.value="";payFile.value="";payInstallment.value="";}
-function resetToOriginal(){if(confirm("سيتم حذف كل التعديلات والمدفوعات المحفوظة والرجوع للبيانات الأصلية. هل أنت متأكد؟")){data=structuredClone(original); save();}}
-function exportJSON(){
+function clearPaymentForm(){payDate.value="";payAmount.value="";payRef.value="";payNote.value="";payReceiptLink.value="";payInstallment.value="";}
+window.resetToOriginal = function(){
+  if(confirm("سيتم حذف كل التعديلات والمدفوعات المحفوظة والرجوع للبيانات الأصلية. هل أنت متأكد؟")){
+    data=structuredClone(original); save();
+  }
+}
+window.exportJSON = function(){
   const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
-  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="Financial_Tracker_finance_backup.json"; a.click();
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="Financial_Tracker_cloud_backup.json"; a.click();
 }
+window.importJSON = function(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async ()=>{
+    try{
+      const imported = normalizeData(JSON.parse(reader.result));
+      if(confirm("سيتم استبدال البيانات الحالية بالنسخة الاحتياطية المستوردة. هل تريد المتابعة؟")){
+        data = imported;
+        await save();
+      }
+    }catch(e){
+      alert("ملف النسخة الاحتياطية غير صالح.");
+    }finally{
+      event.target.value = "";
+    }
+  };
+  reader.readAsText(file);
+}
+
+loginBtn.addEventListener("click", async ()=>{
+  try{ await signInWithPopup(auth, provider); }
+  catch(err){ console.error(err); alert("تعذر تسجيل الدخول بجوجل."); }
+});
+logoutBtn.addEventListener("click", async ()=>{ await signOut(auth); });
+
+onAuthStateChanged(auth, async (user)=>{
+  currentUser = user;
+  loginBtn.style.display = user ? "none" : "";
+  logoutBtn.style.display = user ? "" : "none";
+  setLocked(!user);
+  if(unsubscribeTracker){ unsubscribeTracker(); unsubscribeTracker = null; }
+  if(!user){
+    cloudReady = false;
+    setStatus("لم يتم تسجيل الدخول بعد. لن يتم الحفظ أونلاين إلا بعد تسجيل الدخول.");
+    data = normalizeData(JSON.parse(localStorage.getItem("generic_financial_tracker_cloud_backup") || "null")) || structuredClone(original);
+    render();
+    return;
+  }
+  setStatus("تم تسجيل الدخول. جاري تحميل البيانات أونلاين...");
+  try{
+    const snap = await getDoc(trackerRef);
+    if(!snap.exists()){
+      data = normalizeData(data);
+      await setDoc(trackerRef, {data: JSON.parse(JSON.stringify(data)), createdAt: serverTimestamp(), updatedAt: serverTimestamp(), updatedBy:user.email || ""});
+    }else{
+      data = normalizeData(snap.data().data);
+    }
+    cloudReady = true;
+    localBackup();
+    render();
+    setStatus("متصل أونلاين: " + (user.email || ""));
+    unsubscribeTracker = onSnapshot(trackerRef, (docSnap)=>{
+      if(docSnap.exists() && !saving){
+        data = normalizeData(docSnap.data().data);
+        localBackup();
+        render();
+      }
+    }, (err)=>{
+      console.error(err);
+      setStatus("تعذر قراءة البيانات. تحقق من أن الحساب مسموح له في Firestore Rules.");
+    });
+  }catch(err){
+    console.error(err);
+    cloudReady = false;
+    setStatus("تعذر تحميل البيانات. تحقق من Firestore Rules أو الحساب المستخدم.");
+    alert("تعذر تحميل البيانات من Firestore. غالباً الحساب الحالي غير مسموح له في قواعد Firestore.");
+    render();
+  }
+});
+
+setLocked(true);
 render();
 </script>
 </body>
